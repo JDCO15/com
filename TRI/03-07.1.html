@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Galería Completa con Zoom y Arrastre</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+<style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #9f2fff 0%, #3e63dd 100%);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .gallery-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 40px 0 20px 0;
+    }
+    .gallery-main-wrapper {
+      background: #181818;
+      border-radius: 16px;
+      box-shadow: 0 6px 36px rgba(0,0,0,0.35);
+      padding: 24px 24px 16px 24px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 350px;
+      max-width: 820px;
+      width: 90vw;
+    }
+    .gallery-main {
+      position: relative;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #111;
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 300px;
+      max-height: 480px;
+      aspect-ratio: 4/3;
+      cursor: grab;
+    }
+    .gallery-main.dragging {
+      cursor: grabbing !important;
+    }
+    .gallery-main img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #222;
+      transition: transform 0.3s;
+      border-radius: 10px;
+      user-select: none;
+      pointer-events: all;
+      /* Para evitar selección accidental */
+    }
+    .gallery-main .fullscreen-btn {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background: rgba(40,40,40,0.8);
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 4px 8px;
+      z-index: 2;
+      transition: background 0.2s;
+    }
+    .gallery-main .fullscreen-btn:hover {
+      background: #3e63dd;
+    }
+    .zoom-controls {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 2;
+    }
+    .zoom-controls button {
+      background: rgba(40,40,40,0.8);
+      border: none;
+      color: #fff;
+      padding: 5px 8px;
+      font-size: 1.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .zoom-controls button:hover {
+      background: #3e63dd;
+    }
+    .gallery-main .print-btn {
+      position: absolute;
+      right: 10px;
+      top: 54px;
+      background: #3e63dd;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      z-index: 2;
+      transition: background 0.2s;
+    }
+    .gallery-main .print-btn:hover {
+      background: #2652b0;
+    }
+    .gallery-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin: 14px 0 0 0;
+      gap: 12px;
+    }
+    .gallery-nav .nav-btn {
+      background: #3e63dd;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 18px;
+      font-size: 1.6rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      min-width: 42px;
+    }
+    .gallery-nav .nav-btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    .gallery-counter {
+      color: #fff;
+      font-size: 1.05rem;
+      padding: 0 7px;
+      user-select: none;
+    }
+    .gallery-thumbnails {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin-top: 16px;
+      overflow-x: auto;
+      width: 100%;
+      padding-bottom: 4px;
+    }
+    .gallery-thumbnails::-webkit-scrollbar {
+      height: 5px;
+      background: #222;
+    }
+    .gallery-thumbnails::-webkit-scrollbar-thumb {
+      background: #3e63dd;
+      border-radius: 6px;
+    }
+    .gallery-thumbnails img {
+      width: 72px;
+      height: 54px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 2.5px solid transparent;
+      background: #232323;
+      cursor: pointer;
+      transition: border 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+      opacity: 0.7;
+    }
+    .gallery-thumbnails img.active {
+      border: 2.5px solid #fff;
+      opacity: 1;
+      box-shadow: 0 4px 16px rgba(62,99,221,0.22);
+    }
+    @media (max-width: 800px) {
+      .gallery-main-wrapper {
+        max-width: 98vw;
+        min-width: unset;
+        padding: 10px 2vw 10px 2vw;
+      }
+      .gallery-main {
+        max-height: 40vw;
+        min-height: 180px;
+      }
+      .gallery-thumbnails img {
+        width: 51px;
+        height: 38px;
+      }
+    }
+    @media (max-width: 600px) {
+      .gallery-main-wrapper {
+        padding: 4vw 0 4vw 0;
+        max-width: 99vw;
+      }
+      .gallery-main {
+        aspect-ratio: 1/1;
+        min-height: 120px;
+        max-height: 68vw;
+      }
+      .gallery-thumbnails img {
+        width: 36px;
+        height: 28px;
+      }
+    }
+    /* Estilos para impresión */
+    @media print {
+      body, html {
+        background: #fff !important;
+      }
+      .gallery-container, .gallery-main-wrapper {
+        background: #fff !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .gallery-thumbnails, .gallery-nav, .gallery-counter, .fullscreen-btn, .zoom-controls, .print-btn {
+        display: none !important;
+      }
+      .gallery-main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      .gallery-main img {
+        width: 100vw !important;
+        height: auto !important;
+        max-width: 100vw !important;
+        max-height: 95vh !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0 auto !important;
+        display: block;
+        object-fit: contain !important;
+      }
+    }
+  </style>
+<link href="../css/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div class="gallery-container">
+  <div class="gallery-main-wrapper">
+    <div class="gallery-main" id="galleryMain">
+      <button class="fullscreen-btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
+      <img id="mainImage" src="" alt="Imagen principal" draggable="false">
+      <div class="zoom-controls">
+        <button id="zoomInBtn" title="Acercar">+</button>
+        <button id="zoomOutBtn" title="Alejar">−</button>
+      </div>
+      <button class="print-btn" id="printBtn" title="Imprimir imagen actual">🖨 Imprimir</button>
+    </div>
+    <div class="gallery-nav">
+      <button class="nav-btn" id="prevBtn" title="Anterior">‹</button>
+      <div class="gallery-counter" id="counter"></div>
+      <button class="nav-btn" id="nextBtn" title="Siguiente">›</button>
+    </div>
+    <div class="gallery-thumbnails" id="thumbnails"></div>
+  </div>
+</div>
+<p>
+  <script>
+  // --- Configura aquí tus imágenes ---
+  const images = [
+    "../img/MATERIAL TRITURACION/M_03-07.1.JPG",
+    
+ 
+  ];
+
+  let currentIndex = 0;
+  let currentZoom = 1;
+  const minZoom = 1;
+  const maxZoom = 2.5;
+  const zoomStep = 0.15;
+
+  // Para drag/desplazamiento
+  let isDragging = false;
+  let startX, startY;
+  let translateX = 0, translateY = 0;
+  let lastTranslateX = 0, lastTranslateY = 0;
+
+  // --- Elementos del DOM ---
+  const mainImage = document.getElementById('mainImage');
+  const thumbnails = document.getElementById('thumbnails');
+  const counter = document.getElementById('counter');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  const printBtn = document.getElementById('printBtn');
+  const galleryMain = document.getElementById('galleryMain');
+
+  function renderThumbnails() {
+    thumbnails.innerHTML = '';
+    images.forEach((src, idx) => {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = `Miniatura ${idx+1}`;
+      img.className = 'thumb' + (idx === currentIndex ? ' active' : '');
+      img.onclick = () => showImage(idx);
+      thumbnails.appendChild(img);
+    });
+  }
+
+  function showImage(idx) {
+    currentIndex = idx;
+    mainImage.src = images[idx];
+    resetTransform();
+    renderThumbnails();
+    updateCounter();
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === images.length - 1;
+  }
+
+  function updateCounter() {
+    counter.textContent = `${currentIndex + 1} de ${images.length}`;
+  }
+
+  prevBtn.onclick = () => {
+    if (currentIndex > 0) {
+      showImage(currentIndex - 1);
+    }
+  };
+  nextBtn.onclick = () => {
+    if (currentIndex < images.length - 1) {
+      showImage(currentIndex + 1);
+    }
+  };
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    if (e.key === "ArrowLeft") prevBtn.click();
+    if (e.key === "ArrowRight") nextBtn.click();
+  });
+
+  function setZoom(z) {
+    currentZoom = Math.max(minZoom, Math.min(maxZoom, z));
+    // Limita el desplazamiento para que la imagen no se salga por completo
+    limitTranslate();
+    applyTransform();
+    zoomInBtn.disabled = currentZoom >= maxZoom;
+    zoomOutBtn.disabled = currentZoom <= minZoom;
+  }
+
+  zoomInBtn.onclick = () => setZoom(currentZoom + zoomStep);
+  zoomOutBtn.onclick = () => setZoom(currentZoom - zoomStep);
+
+  fullscreenBtn.onclick = () => {
+    if (galleryMain.requestFullscreen) {
+      galleryMain.requestFullscreen();
+    } else if (galleryMain.webkitRequestFullscreen) {
+      galleryMain.webkitRequestFullscreen();
+    } else if (galleryMain.msRequestFullscreen) {
+      galleryMain.msRequestFullscreen();
+    }
+  };
+
+  printBtn.onclick = () => {
+    const printWindow = window.open('', '_blank');
+    const imgHTML = `<img src="${mainImage.src}" style="max-width:100vw;max-height:99vh;display:block;margin:0 auto;">`;
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Imprimir Imagen</title>
+        <style>
+          body { margin:0; padding:0; background:#fff; }
+          img { max-width:100vw; max-height:98vh; display:block; margin:0 auto; object-fit:contain; }
+        </style>
+      </head>
+      <body>
+        ${imgHTML}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 200);
+  };
+
+  function resetTransform() {
+    currentZoom = 1;
+    translateX = 0;
+    translateY = 0;
+    lastTranslateX = 0;
+    lastTranslateY = 0;
+
+    applyTransform();
+    zoomInBtn.disabled = currentZoom >= maxZoom;
+    zoomOutBtn.disabled = currentZoom <= minZoom;
+  }
+
+  function applyTransform() {
+    mainImage.style.transform = `scale(${currentZoom}) translate(${translateX/currentZoom}px,${translateY/currentZoom}px)`;
+  }
+
+  function limitTranslate() {
+    // Limita el desplazamiento para evitar que la imagen se salga completamente del contenedor
+    const mainRect = galleryMain.getBoundingClientRect();
+    const imgRect = mainImage.getBoundingClientRect();
+    const scaledWidth = mainRect.width * currentZoom;
+    const scaledHeight = mainRect.height * currentZoom;
+
+    const maxX = Math.max(0, (scaledWidth - mainRect.width) / 2);
+    const maxY = Math.max(0, (scaledHeight - mainRect.height) / 2);
+
+    translateX = Math.min(maxX, Math.max(-maxX, translateX));
+    translateY = Math.min(maxY, Math.max(-maxY, translateY));
+  }
+
+  // Drag para desktop
+  mainImage.addEventListener('mousedown', (e) => {
+    if (currentZoom === 1) return;
+    isDragging = true;
+    galleryMain.classList.add('dragging');
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    translateX = lastTranslateX + dx;
+    translateY = lastTranslateY + dy;
+    limitTranslate();
+    applyTransform();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    lastTranslateX = translateX;
+    lastTranslateY = translateY;
+    isDragging = false;
+    galleryMain.classList.remove('dragging');
+  });
+
+  // Touch events para móviles
+  mainImage.addEventListener('touchstart', (e) => {
+    if (currentZoom === 1) return;
+    if (e.touches.length !== 1) return;
+    isDragging = true;
+    galleryMain.classList.add('dragging');
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+
+  mainImage.addEventListener('touchmove', (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    translateX = lastTranslateX + dx;
+    translateY = lastTranslateY + dy;
+    limitTranslate();
+    applyTransform();
+  });
+
+  mainImage.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    lastTranslateX = translateX;
+    lastTranslateY = translateY;
+    isDragging = false;
+    galleryMain.classList.remove('dragging');
+  });
+
+  // Resetear zoom y desplazamiento al cambiar imagen
+  function newShowImage(idx){
+    showImage(idx);
+    resetTransform();
+  }
+
+  // Inicialización
+  showImage(0);
+  setZoom(1);
+
+  // Extra: Permitir doble click para resetear zoom/posición
+  mainImage.addEventListener('dblclick', () => {
+    resetTransform();
+  });
+  
+  </script>
+</p><div class="col-12 text-center">
+                  <a href="EQUIPOS TRI.html" class="btn btn-SECUNDARY py-3 px-5">ATRAS</a>
+                          
+          </div>
+<p>&nbsp;</p>
+</body>
+</html>
